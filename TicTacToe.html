@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #222;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 10px;
+            background-color: #444;
+            padding: 15px;
+            border-radius: 15px;
+        }
+        .cell {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5em;
+            background-color: #fff;
+            color: black;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+        }
+        .cell.taken {
+            pointer-events: none;
+        }
+        .cell:hover {
+            background-color: #ddd;
+            transform: scale(1.05);
+        }
+        .cell.x {
+            color: #ff4c4c;
+            text-shadow: 2px 2px 5px rgba(255, 76, 76, 0.7);
+            font-weight: bold;
+        }
+        .cell.o {
+            color: #4c9aff;
+            text-shadow: 2px 2px 5px rgba(76, 154, 255, 0.7);
+            font-weight: bold;
+        }
+        .status {
+            margin-top: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            color: black;
+            display: none;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -55%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+        .popup p {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #222;
+        }
+        .button {
+            margin-top: 15px;
+            padding: 10px 15px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border: none;
+            background: #ff4c4c;
+            color: white;
+            border-radius: 8px;
+            transition: background 0.3s;
+        }
+        .button:hover {
+            background: #cc0000;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tic-Tac-Toe</h1>
+    <div class="board" id="board"></div>
+    <div class="status" id="status">Player 1's turn</div>
+    <button class="button" onclick="undoMove()">Undo Move</button>
+    <div class="popup" id="popup">
+        <p id="popup-message"></p>
+        <button class="button" onclick="resetGame()">Play Again</button>
+    </div>
+
+    <!-- Custom Tap Sound -->
+    <audio id="move-sound" src="walkman-button-272973.mp3" type="audio/mpeg" preload="auto"></audio>
+    <audio id="win-sound" src="https://www.soundjay.com/button/sounds/button-3.mp3" type="audio/mpeg" preload="auto"></audio>
+    <audio id="draw-sound" src="https://www.soundjay.com/button/sounds/button-10.mp3" type="audio/mpeg" preload="auto"></audio>
+    <audio id="undo-sound" src="https://www.soundjay.com/button/sounds/button-20.mp3" type="audio/mpeg" preload="auto"></audio>
+
+    <script>
+        const board = document.getElementById("board");
+        const status = document.getElementById("status");
+        const popup = document.getElementById("popup");
+        const popupMessage = document.getElementById("popup-message");
+        const moveSound = document.getElementById("move-sound");
+        const winSound = document.getElementById("win-sound");
+        const drawSound = document.getElementById("draw-sound");
+        const undoSound = document.getElementById("undo-sound");
+
+        let currentPlayer = "1";
+        let gameBoard = Array(9).fill("");
+        let moveHistory = [];
+
+        function createBoard() {
+            board.innerHTML = "";
+            gameBoard.forEach((cell, index) => {
+                const cellElement = document.createElement("div");
+                cellElement.classList.add("cell");
+                cellElement.dataset.index = index;
+                cellElement.innerText = cell;
+                if (cell === "X") cellElement.classList.add("x");
+                if (cell === "O") cellElement.classList.add("o");
+                cellElement.addEventListener("click", makeMove);
+                board.appendChild(cellElement);
+            });
+        }
+
+        function makeMove(event) {
+            const index = event.target.dataset.index;
+            if (gameBoard[index] === "") {
+                gameBoard[index] = currentPlayer === "1" ? "X" : "O";
+                moveHistory.push({ index: parseInt(index), player: currentPlayer });
+                moveSound.currentTime = 0; 
+                moveSound.play();
+                createBoard();
+                if (checkWinner()) {
+                    popupMessage.innerText = `🎉 Player ${currentPlayer} Wins! 🎉`;
+                    popup.style.display = "block";
+                    winSound.currentTime = 0;
+                    winSound.play();
+                    return;
+                } else if (gameBoard.every(cell => cell !== "")) {
+                    popupMessage.innerText = "😢 It's a Draw! 😢";
+                    popup.style.display = "block";
+                    drawSound.currentTime = 0;
+                    drawSound.play();
+                    return;
+                }
+                currentPlayer = currentPlayer === "1" ? "2" : "1";
+                status.innerText = `Player ${currentPlayer}'s turn`;
+            }
+        }
+
+        function undoMove() {
+            if (moveHistory.length > 0) {
+                const lastMove = moveHistory.pop();
+                gameBoard[lastMove.index] = "";
+                currentPlayer = lastMove.player;
+                undoSound.currentTime = 0;
+                undoSound.play();
+                createBoard();
+                status.innerText = `Player ${currentPlayer}'s turn`;
+            }
+        }
+
+        function checkWinner() {
+            const winningCombinations = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                [0, 4, 8], [2, 4, 6]
+            ];
+            return winningCombinations.some(combination => {
+                const [a, b, c] = combination;
+                return gameBoard[a] && gameBoard[a] === gameBoard[b] && gameBoard[a] === gameBoard[c];
+            });
+        }
+
+        function resetGame() {
+            popup.style.display = "none";
+            gameBoard = Array(9).fill("");
+            moveHistory = [];
+            createBoard();
+            status.innerText = "Player 1's turn";
+            currentPlayer = "1";
+        }
+
+        createBoard();
+    </script>
+</body>
+</html>
